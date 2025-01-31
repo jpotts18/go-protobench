@@ -1,9 +1,9 @@
 package bson
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
-	"time"
 
 	"protobench/internal/model"
 
@@ -11,8 +11,7 @@ import (
 )
 
 type Client struct {
-	conn   *net.UDPConn
-	addr   *net.UDPAddr
+	conn   net.Conn
 	port   string
 	server *Server
 }
@@ -38,44 +37,27 @@ func (c *Client) Name() string {
 
 func (c *Client) SendMessage(msg *model.Message) error {
 	if c.conn == nil {
-		addr, err := net.ResolveUDPAddr("udp", ":"+c.port)
+		conn, err := net.Dial("tcp", ":"+c.port)
 		if err != nil {
-			return fmt.Errorf("failed to resolve address: %w", err)
-		}
-		conn, err := net.DialUDP("udp", nil, addr)
-		if err != nil {
-			return fmt.Errorf("failed to dial: %w", err)
+			return fmt.Errorf("failed to connect: %w", err)
 		}
 		c.conn = conn
-		c.addr = addr
 	}
 
-	// Direct BSON serialization
 	data, err := bson.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	c.conn.SetReadDeadline(time.Now().Add(time.Second))
-	_, err = c.conn.Write(data)
-	if err != nil {
+	// Send length prefix
+	size := uint32(len(data))
+	if err := binary.Write(c.conn, binary.BigEndian, size); err != nil {
+		return fmt.Errorf("failed to send size: %w", err)
+	}
+
+	// Send data
+	if _, err := c.conn.Write(data); err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	// Wait for acknowledgment
-	buffer := make([]byte, 1024)
-	n, err := c.conn.Read(buffer)
-	if err != nil {
-		return fmt.Errorf("failed to receive acknowledgment: %w", err)
-	}
-
-	var response struct{ Success bool }
-	if err := bson.Unmarshal(buffer[:n], &response); err != nil {
-		return fmt.Errorf("failed to unmarshal acknowledgment: %w", err)
-	}
-
-	if !response.Success {
-		return fmt.Errorf("server reported failure")
 	}
 
 	return nil

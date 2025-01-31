@@ -1,18 +1,27 @@
 package udp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 )
 
 type Server struct {
-	conn *net.UDPConn
-	port string
+	conn     *net.UDPConn
+	port     string
+	messages map[uint64]*messageAssembler
+}
+
+type messageAssembler struct {
+	chunks    map[uint32][]byte
+	total     uint32
+	completed bool
 }
 
 func NewServer(port string) *Server {
 	return &Server{
-		port: port,
+		port:     port,
+		messages: make(map[uint64]*messageAssembler),
 	}
 }
 
@@ -40,17 +49,33 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handleConnections() {
-	buffer := make([]byte, 131072)
+	buffer := make([]byte, maxChunkSize+headerSize)
 	for {
-		_, remoteAddr, err := s.conn.ReadFromUDP(buffer)
+		n, remoteAddr, err := s.conn.ReadFromUDP(buffer)
 		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				continue
-			}
-			return // server closed
+			return
 		}
 
-		// Simple acknowledgment without protocol overhead
-		s.conn.WriteToUDP([]byte("ok"), remoteAddr)
+		if n < headerSize {
+			continue
+		}
+
+		// Extract header info
+		seqNum := binary.BigEndian.Uint64(buffer[0:8])
+		chunkNum := binary.BigEndian.Uint32(buffer[8:12])
+		totalChunks := binary.BigEndian.Uint32(buffer[12:16])
+
+		// Send acknowledgment
+		s.conn.WriteToUDP(buffer[:headerSize], remoteAddr)
+
+		// Store chunk
+		_, exists := s.messages[seqNum]
+		if !exists {
+			s.messages[seqNum] = &messageAssembler{
+				chunks: make(map[uint32][]byte),
+				total:  totalChunks,
+			}
+		}
+		s.messages[seqNum].chunks[chunkNum] = append([]byte{}, buffer[headerSize:n]...)
 	}
 }

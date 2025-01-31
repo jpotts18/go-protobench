@@ -25,7 +25,28 @@ go mod download
 - **BSON**: Binary JSON format over UDP
 - **XML over HTTP**: Traditional XML-based communication
 
-## Sample Results (1000 messages, 100KB each)
+## Sample Results (1000 messages, 10KB each)
+
+```bash
+ ✗ go run cmd/benchmark/main.go --kb 50
+
+Running benchmarks (1000 messages, 50KB each):
+
+JSON 100% [===============] (1000/1000)
+gRPC 100% [===============] (1000/1000)
+UDP-ACK 100% [===============] (1000/1000)
+BSON 100% [===============] (1000/1000)
+XML 100% [===============] (1000/1000)
+
+Results:
+Protocol             Time        Msgs/sec     Errors    Missing
+-----------------------------------------------------------------
+JSON               2.669s          374.64          0          0
+gRPC                512ms         1951.58          0          0
+UDP-ACK            2.125s          470.53          0          0
+BSON                366ms         2735.51          0          0
+XML                2.811s          355.69          0          0
+```
 
 ## Key Findings
 
@@ -49,26 +70,29 @@ go mod download
 
 ## Usage
 
-Run basic benchmark
+Run basic benchmark with default settings (1000 messages, 10KB each):
 
-`go run cmd/benchmark/main.go`
+```bash
+go run cmd/benchmark/main.go
+```
 
-Run with CPU and memory profiling
+Run with custom message count and size:
 
-`go run cmd/benchmark/main.go --profile`
+```bash
+go run cmd/benchmark/main.go -n 500 -kb 50
+```
 
-Specify number of messages
+Run with profiling:
 
-`go run cmd/benchmark/main.go -n 500`
+```bash
+go run cmd/benchmark/main.go --profile -n 100 -kb 200
+```
 
-## Conclusions
+All options:
 
-The results demonstrate clear trade-offs between reliability and performance:
-
-- HTTP-based protocols provide guaranteed delivery but with significant overhead
-- gRPC offers an excellent balance of performance and reliability
-- UDP protocols show that for large messages (100KB), reliable delivery requires additional protocol support
-- Raw UDP, while fastest, is unsuitable for large messages without additional reliability mechanisms
+- `-n`: Number of messages to send (default: 1000)
+- `-kb`: Size of each message in kilobytes (default: 10)
+- `--profile`: Enable CPU and memory profiling
 
 ## Future Work
 
@@ -78,26 +102,3 @@ The results demonstrate clear trade-offs between reliability and performance:
 - Add raw TCP implementation
 - Test under different network conditions and loads
 - Add support for bidirectional streaming
-
-## Project Structure
-
-```
-.
-├── cmd/
-│   └── benchmark/          # Main benchmark executable
-├── internal/
-│   ├── benchmark/         # Benchmark runner and results
-│   ├── model/            # Shared data models
-│   └── protocols/        # Protocol implementations
-│       ├── bson/
-│       ├── grpc/
-│       ├── json/
-│       ├── udpack/       # UDP with acknowledgments
-│       ├── udpnoack/     # UDP without acknowledgments
-│       └── xml/
-├── profiles/             # Generated profiling data (gitignored)
-├── .gitignore
-├── go.mod
-├── go.sum
-└── README.md
-```

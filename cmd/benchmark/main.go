@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 	"time"
 
 	"protobench/internal/benchmark"
@@ -16,11 +17,12 @@ import (
 	"protobench/internal/protocols/grpc"
 	"protobench/internal/protocols/json"
 	udp "protobench/internal/protocols/udpack"
-	udpfast "protobench/internal/protocols/udpnoack"
 	"protobench/internal/protocols/xml"
+
+	"github.com/schollz/progressbar/v3"
 )
 
-func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int, shouldProfile bool) benchmark.Result {
+func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int, messageSize int, shouldProfile bool) benchmark.Result {
 	if shouldProfile {
 		// Create profile directory
 		if err := os.MkdirAll("profiles", 0755); err != nil {
@@ -40,10 +42,34 @@ func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int
 		defer pprof.StopCPUProfile()
 	}
 
-	// Run benchmark for this protocol
-	runner := benchmark.NewRunner(messageCount)
+	runner := benchmark.NewRunner(messageCount, messageSize)
 	runner.AddProtocol(name, protocol)
-	results := runner.RunBenchmark()
+
+	// Create progress bar
+	bar := progressbar.NewOptions(messageCount,
+		progressbar.OptionSetDescription(name),
+		progressbar.OptionEnableColorCodes(false),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "=",
+			SaucerHead:    ">",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+	)
+
+	// Run benchmark with progress updates
+	results := runner.RunBenchmarkWithProgress(func(sent, errors int) {
+		bar.Set(sent)
+		if errors > 0 {
+			bar.Describe(fmt.Sprintf("%s (Errors: %d)", name, errors))
+		}
+	})
+
+	bar.Finish()
+	fmt.Println() // Add newline after progress bar
 
 	if shouldProfile {
 		// Memory Profile
@@ -65,6 +91,7 @@ func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int
 func main() {
 	shouldProfile := flag.Bool("profile", false, "Enable CPU and memory profiling")
 	messageCount := flag.Int("n", 1000, "Number of messages to send")
+	messageSize := flag.Int("kb", 10, "Size of each message in kilobytes")
 	flag.Parse()
 
 	// Setup protocols
@@ -76,40 +103,38 @@ func main() {
 		{"JSON", "8080", func(p string) model.Protocol { return json.NewClient(p) }},
 		{"gRPC", "8081", func(p string) model.Protocol { return grpc.NewClient(p) }},
 		{"UDP-ACK", "8082", func(p string) model.Protocol { return udp.NewClient(p) }},
-		{"UDP-NOACK", "8083", func(p string) model.Protocol { return udpfast.NewClient(p) }},
 		{"BSON", "8084", func(p string) model.Protocol { return bson.NewClient(p) }},
 		{"XML", "8085", func(p string) model.Protocol { return xml.NewClient(p) }},
 	}
 
 	var results []benchmark.Result
 
-	// Run benchmark for each protocol
+	fmt.Printf("\nRunning benchmarks (%d messages, %dKB each):\n\n", *messageCount, *messageSize)
+
 	for _, c := range clients {
-		fmt.Printf("Starting %s protocol test...\n", c.name)
 		client := c.new(c.port)
 		if err := client.StartServer(); err != nil {
 			log.Fatalf("Failed to start %s server: %v", c.name, err)
 		}
 
-		time.Sleep(time.Second) // Wait for server to start
-		fmt.Printf("Running benchmark for %s...\n", c.name)
-		result := runProtocolBenchmark(c.name, client, *messageCount, *shouldProfile)
+		result := runProtocolBenchmark(c.name, client, *messageCount, *messageSize, *shouldProfile)
 		results = append(results, result)
 
-		fmt.Printf("Stopping %s server...\n", c.name)
-		if err := client.StopServer(); err != nil {
-			log.Printf("Warning: failed to stop %s server: %v", c.name, err)
-		}
-		fmt.Printf("Finished %s protocol test\n", c.name)
+		client.StopServer()
 	}
 
-	// Print results
-	fmt.Println("\nBenchmark Results:")
+	// Print final results table
+	fmt.Println("\nResults:")
+	fmt.Printf("%-12s %12s %15s %10s %10s\n", "Protocol", "Time", "Msgs/sec", "Errors", "Missing")
+	fmt.Println(strings.Repeat("-", 65))
+
 	for _, result := range results {
-		fmt.Printf("\nProtocol: %s\n", result.Protocol)
-		fmt.Printf("Total Time: %v\n", result.TotalTime)
-		fmt.Printf("Messages/second: %.2f\n", result.MessagesPerSecond)
-		fmt.Printf("Errors: %d\n", result.Errors)
-		fmt.Printf("Missing: %d\n", result.Missing)
+		fmt.Printf("%-12s %12s %15.2f %10d %10d\n",
+			result.Protocol,
+			result.TotalTime.Round(time.Millisecond),
+			result.MessagesPerSecond,
+			result.Errors,
+			result.Missing,
+		)
 	}
 }

@@ -1,6 +1,7 @@
 package udp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -34,6 +35,11 @@ func (c *Client) Name() string {
 	return "UDP"
 }
 
+const (
+	maxChunkSize = 1400 // Leave room for headers
+	headerSize   = 16   // 8 bytes seq + 8 bytes chunk info
+)
+
 func (c *Client) SendMessage(msg *model.Message) error {
 	if c.conn == nil {
 		addr, err := net.ResolveUDPAddr("udp", ":"+c.port)
@@ -48,39 +54,54 @@ func (c *Client) SendMessage(msg *model.Message) error {
 		c.addr = addr
 	}
 
-	msgBody := MessageBody{
-		ID:      msg.ID,
-		Content: msg.Content,
-		Number:  msg.Number,
-	}
-	asciiMsg := FormatMessage(msgBody)
-	data, err := EncodeMessage([]byte(asciiMsg))
-	if err != nil {
-		return fmt.Errorf("failed to encode message: %w", err)
-	}
+	content := []byte(msg.Content)
+	totalChunks := (len(content) + maxChunkSize - 1) / maxChunkSize
 
-	// Set a very short timeout
-	c.conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
-
-	_, err = c.conn.Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	// Wait for acknowledgment with timeout
-	buffer := make([]byte, 1024)
-	n, err := c.conn.Read(buffer)
-	if err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			// On timeout, just return without error
-			return nil
+	// Send each chunk with retries
+	for chunk := 0; chunk < totalChunks; chunk++ {
+		start := chunk * maxChunkSize
+		end := start + maxChunkSize
+		if end > len(content) {
+			end = len(content)
 		}
-		return fmt.Errorf("failed to receive acknowledgment: %w", err)
+
+		// Header: sequence number (8 bytes) + chunk number (4 bytes) + total chunks (4 bytes)
+		header := make([]byte, headerSize)
+		binary.BigEndian.PutUint64(header[0:8], uint64(msg.Number))
+		binary.BigEndian.PutUint32(header[8:12], uint32(chunk))
+		binary.BigEndian.PutUint32(header[12:16], uint32(totalChunks))
+
+		// Combine header and chunk data
+		data := append(header, content[start:end]...)
+
+		// Try to send chunk with retries
+		maxRetries := 3
+		success := false
+		for retry := 0; retry < maxRetries; retry++ {
+			if err := c.sendChunkWithAck(data); err == nil {
+				success = true
+				break
+			}
+		}
+		if !success {
+			return fmt.Errorf("failed to send chunk %d/%d after retries", chunk+1, totalChunks)
+		}
 	}
 
-	// Quick verify of acknowledgment without decoding
-	if n < 2 || string(buffer[:2]) != "ok" {
-		return fmt.Errorf("invalid acknowledgment")
+	return nil
+}
+
+func (c *Client) sendChunkWithAck(data []byte) error {
+	if _, err := c.conn.Write(data); err != nil {
+		return err
+	}
+
+	// Wait for acknowledgment
+	c.conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+	ackBuf := make([]byte, headerSize)
+	n, err := c.conn.Read(ackBuf)
+	if err != nil || n != headerSize {
+		return fmt.Errorf("ack error: %v", err)
 	}
 
 	return nil
