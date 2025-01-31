@@ -1,0 +1,17 @@
+# Ignore profiling data
+/profiles/*
+!profiles/.gitkeep
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDE specific
+.idea/
+.vscode/
+*.swp 

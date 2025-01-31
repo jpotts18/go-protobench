@@ -1,0 +1,23 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "protobench/internal/protocols/grpc/proto";
+
+import "google/protobuf/timestamp.proto";
+
+message Message {
+    string id = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    string content = 3;
+    int64 number = 4;
+    bool is_valid = 5;
+}
+
+service MessageService {
+    rpc SendMessage (Message) returns (Response) {}
+}
+
+message Response {
+    bool success = 1;
+    string message = 2;
+} 
