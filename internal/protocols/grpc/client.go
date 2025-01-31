@@ -62,4 +62,4 @@ func (c *Client) SendMessage(msg *model.Message) error {
 
 	_, err := c.client.SendMessage(ctx, protoMsg)
 	return err
-} 
+}

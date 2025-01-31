@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	MagicBytes = 0x4242  // Protocol identifier
-	Version    = 1       // Protocol version
-	HeaderSize = 12      // 2 magic + 2 version + 4 payload size + 4 checksum
+	MagicBytes = 0x4242 // Protocol identifier
+	Version    = 1      // Protocol version
+	HeaderSize = 12     // 2 magic + 2 version + 4 payload size + 4 checksum
 )
 
 type Header struct {
@@ -32,7 +32,7 @@ func calculateChecksum(data []byte) uint32 {
 
 func EncodeMessage(payload []byte) ([]byte, error) {
 	checksum := calculateChecksum(payload)
-	
+
 	header := Header{
 		Magic:      MagicBytes,
 		Version:    Version,
@@ -92,7 +92,7 @@ func ParseMessage(data string) (MessageBody, error) {
 	var msg MessageBody
 	var id, content string
 	var number int64
-	
+
 	_, err := fmt.Sscanf(data, "ID:%s|CONTENT:%s|NUMBER:%d", &id, &content, &number)
 	if err != nil {
 		return msg, fmt.Errorf("failed to parse message: %w", err)
@@ -102,4 +102,4 @@ func ParseMessage(data string) (MessageBody, error) {
 	msg.Content = content
 	msg.Number = number
 	return msg, nil
-} 
+}

@@ -50,4 +50,4 @@ func (s *Server) handleConnections() {
 		// Just count the messages, no processing needed
 		_ = n
 	}
-} 
+}

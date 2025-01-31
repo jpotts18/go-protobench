@@ -30,7 +30,7 @@ func (s *Server) Start() error {
 
 	s.server = grpc.NewServer()
 	proto.RegisterMessageServiceServer(s.server, s)
-	
+
 	go s.server.Serve(lis)
 	return nil
 }
@@ -47,4 +47,4 @@ func (s *Server) SendMessage(ctx context.Context, msg *proto.Message) (*proto.Re
 		Success: true,
 		Message: "Message received",
 	}, nil
-} 
+}

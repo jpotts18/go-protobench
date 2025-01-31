@@ -17,7 +17,7 @@ type Runner struct {
 func NewRunner(messageCount int) *Runner {
 	return &Runner{
 		messageCount: messageCount,
-		clients:     make(map[string]model.Protocol),
+		clients:      make(map[string]model.Protocol),
 	}
 }
 
@@ -31,8 +31,8 @@ func generateTestMessage(id int) *model.Message {
 	for i := 0; i < 1000; i++ {
 		content = append(content, fmt.Sprintf(
 			"field%d: This is a detailed data record with multiple fields that might represent a database row or event log. "+
-			"Including various data types and lengths to simulate real application data. Current iteration: %d, "+
-			"Additional padding to reach desired size with some random values: %d-%d-%d",
+				"Including various data types and lengths to simulate real application data. Current iteration: %d, "+
+				"Additional padding to reach desired size with some random values: %d-%d-%d",
 			i, i, i*2, i*3, i*4))
 	}
 
@@ -47,7 +47,7 @@ func generateTestMessage(id int) *model.Message {
 
 func (r *Runner) RunBenchmark() []Result {
 	var results []Result
-	
+
 	for name, protocol := range r.clients {
 		start := time.Now()
 		errors := 0
@@ -74,11 +74,11 @@ func (r *Runner) RunBenchmark() []Result {
 		}
 
 		results = append(results, Result{
-			Protocol:         name,
-			TotalTime:       duration,
+			Protocol:          name,
+			TotalTime:         duration,
 			MessagesPerSecond: messagesPerSecond,
-			Errors:          errors,
-			Missing:         missing,
+			Errors:            errors,
+			Missing:           missing,
 		})
 	}
 
@@ -124,10 +124,10 @@ func (r *Runner) benchmarkProtocol(name string, protocol model.Protocol) Result 
 	messagesPerSecond := float64(r.messageCount) / duration.Seconds()
 
 	return Result{
-		Protocol:         name,
-		TotalTime:       duration,
+		Protocol:          name,
+		TotalTime:         duration,
 		MessagesPerSecond: messagesPerSecond,
-		Errors:          errorCount,
-		Missing:         0,
+		Errors:            errorCount,
+		Missing:           0,
 	}
-} 
+}

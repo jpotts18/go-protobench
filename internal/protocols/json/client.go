@@ -14,7 +14,7 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	port       string
-	server *Server
+	server     *Server
 }
 
 func NewClient(port string) *Client {
@@ -23,7 +23,7 @@ func NewClient(port string) *Client {
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
-		port: port,
+		port:   port,
 		server: NewServer(port),
 	}
 }
@@ -61,4 +61,4 @@ func (c *Client) SendMessage(msg *model.Message) error {
 	}
 
 	return nil
-} 
+}

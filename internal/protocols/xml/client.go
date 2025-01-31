@@ -57,4 +57,4 @@ func (c *Client) SendMessage(msg *model.Message) error {
 	}
 
 	return nil
-} 
+}

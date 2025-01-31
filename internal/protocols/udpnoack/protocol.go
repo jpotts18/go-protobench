@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	MagicBytes = 0x4343  // Different magic bytes from regular UDP
+	MagicBytes = 0x4343 // Different magic bytes from regular UDP
 	Version    = 1
 	HeaderSize = 12
 )
@@ -32,7 +32,7 @@ func calculateChecksum(data []byte) uint32 {
 
 func EncodeMessage(payload []byte) ([]byte, error) {
 	checksum := calculateChecksum(payload)
-	
+
 	header := Header{
 		Magic:      MagicBytes,
 		Version:    Version,
@@ -51,4 +51,4 @@ func EncodeMessage(payload []byte) ([]byte, error) {
 
 func FormatMessage(msg MessageBody) string {
 	return fmt.Sprintf("ID:%s|CONTENT:%s|NUMBER:%d", msg.ID, msg.Content, msg.Number)
-} 
+}

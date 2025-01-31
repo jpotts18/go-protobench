@@ -61,4 +61,4 @@ func (s *Server) handleConnections() {
 		response, _ := bson.Marshal(ack)
 		s.conn.WriteToUDP(response, remoteAddr)
 	}
-} 
+}

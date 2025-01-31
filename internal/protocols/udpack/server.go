@@ -53,4 +53,4 @@ func (s *Server) handleConnections() {
 		// Simple acknowledgment without protocol overhead
 		s.conn.WriteToUDP([]byte("ok"), remoteAddr)
 	}
-} 
+}

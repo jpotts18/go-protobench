@@ -65,4 +65,4 @@ func (s *Server) handleMessage(w http.ResponseWriter, r *http.Request) {
 	// Echo the message back
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msg)
-} 
+}

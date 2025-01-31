@@ -33,7 +33,7 @@ func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int
 			log.Fatal(err)
 		}
 		defer cpuFile.Close()
-		
+
 		if err := pprof.StartCPUProfile(cpuFile); err != nil {
 			log.Fatal(err)
 		}
@@ -53,7 +53,7 @@ func runProtocolBenchmark(name string, protocol model.Protocol, messageCount int
 			log.Fatal(err)
 		}
 		defer memFile.Close()
-		
+
 		if err := pprof.WriteHeapProfile(memFile); err != nil {
 			log.Fatal(err)
 		}
@@ -112,4 +112,4 @@ func main() {
 		fmt.Printf("Errors: %d\n", result.Errors)
 		fmt.Printf("Missing: %d\n", result.Missing)
 	}
-} 
+}
