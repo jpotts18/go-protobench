@@ -6,7 +6,7 @@ A Go-based benchmarking tool that compares different communication protocols and
 
 ## Overview
 
-This project implements and benchmarks various protocols to understand their performance characteristics when sending ~100KB messages. It measures throughput, reliability, and error rates across different communication methods.
+This project implements and benchmarks various protocols to understand their performance characteristics when sending messages of configurable size. It measures throughput, reliability, and error rates across different communication methods.
 
 ## Installation
 
@@ -20,12 +20,11 @@ go mod download
 
 - **JSON over HTTP**: Traditional REST-style communication using Go's standard library
 - **gRPC**: Google's RPC framework using Protocol Buffers
-- **UDP with Acknowledgment**: Custom UDP implementation with basic reliability via acks
-- **UDP without Acknowledgment**: Raw UDP for maximum throughput
-- **BSON**: Binary JSON format over UDP
+- **UDP with Acknowledgment**: Custom UDP implementation with basic reliability via acks and chunking
+- **BSON**: Binary JSON format over TCP with length-prefixed framing
 - **XML over HTTP**: Traditional XML-based communication
 
-## Sample Results (1000 messages, 10KB each)
+## Sample Results (1000 messages, 50KB each)
 
 ```bash
  ✗ go run cmd/benchmark/main.go --kb 50
@@ -53,20 +52,26 @@ XML                2.811s          355.69          0          0
 1. **HTTP-based Protocols (JSON, XML)**
 
    - Perfect reliability (0 errors, 0 missing)
-   - Lowest throughput (~200-250 msgs/sec)
+   - Lower throughput (~350-375 msgs/sec)
    - XML slightly slower than JSON due to more verbose format
 
 2. **gRPC**
 
    - Excellent balance of speed and reliability
-   - ~1200 msgs/sec with no errors
+   - ~2000 msgs/sec with no errors
    - Benefits from Protocol Buffers' efficient serialization
 
-3. **UDP Protocols**
-   - Highest raw throughput (~1600-2000 msgs/sec)
-   - Complete message loss at 100KB payload size
-   - Even with acknowledgments, unable to handle large messages reliably
-   - BSON serialization fastest but limited by UDP transport
+3. **UDP with Acknowledgment**
+
+   - Reliable delivery through chunking and retries
+   - Moderate throughput (~470 msgs/sec)
+   - Handles large messages by breaking them into smaller chunks
+
+4. **BSON over TCP**
+
+   - Highest throughput (~2700 msgs/sec)
+   - Reliable delivery through TCP
+   - Efficient binary serialization
 
 ## Usage
 
@@ -96,7 +101,7 @@ All options:
 
 ## Future Work
 
-- Implement retries and backoff for UDP protocols
+- Optimize UDP chunking and acknowledgment strategy
 - Add latency and jitter measurements
 - Test with varying payload sizes
 - Add raw TCP implementation
